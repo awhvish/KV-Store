@@ -11,9 +11,9 @@ func (rf *Raft) persist() {
 	w := new(bytes.Buffer)
 	e := gob.NewEncoder(w)
 
-	e.Encode(rf.currentTerm)
-	e.Encode(rf.votedFor)
-	e.Encode(rf.log)
+	_ = e.Encode(rf.currentTerm)
+	_ = e.Encode(rf.votedFor)
+	_ = e.Encode(rf.log)
 
 	data := w.Bytes()
 
