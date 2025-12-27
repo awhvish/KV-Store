@@ -48,6 +48,7 @@ func (s *Store) CheckAndCompact(level int) error {
 	}
 	filesToCompact := levelFiles
 	nextLevel := level + 1
+	isBottomLevel := nextLevel >= maxLevelFiles
 	fmt.Printf("[Compaction] Merging %d files from L%d to L%d...\n", len(filesToCompact), level, nextLevel)
 	s.mu.Unlock()
 	var iterators []*sstable.SSTableIterator
@@ -108,9 +109,11 @@ func (s *Store) CheckAndCompact(level int) error {
 			continue
 		} // Should never happen
 		if winnerTomb {
-			continue // Correctly skip the tombstone
+			if isBottomLevel {
+				continue
+			}
 		}
-		if err := builder.Add([]byte(minKey), winnerVal, false); err != nil {
+		if err := builder.Add([]byte(minKey), winnerVal, winnerTomb); err != nil {
 			return err
 		}
 	}
