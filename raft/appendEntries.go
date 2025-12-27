@@ -24,7 +24,10 @@ type AppendEntriesReply struct {
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-
+	if len(args.Entries) > 0 || args.LeaderCommit > rf.commitIndex {
+		fmt.Printf("[Follower %d] Recv HB. LeaderCommit: %d, MyCommit: %d, Entries: %d\n",
+			rf.me, args.LeaderCommit, rf.commitIndex, len(args.Entries))
+	}
 	//reject older leaders
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
@@ -48,31 +51,33 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	// conflict resolution & append for entries
 	insertIndex := args.PrevLogIndex + 1
-
 	for i, entry := range args.Entries {
 		index := insertIndex + i
-		// conflict detected
 		if index < len(rf.log) {
 			if rf.log[index].Term != args.Term {
-				rf.log = rf.log[:index]        // truncate the log upto match
-				rf.log = append(rf.log, entry) // append new entry
+				rf.log = rf.log[:index]
+				rf.log = append(rf.log, entry)
 				rf.persist()
 			}
-		} else { // no conflict in log
+		} else {
 			rf.log = append(rf.log, entry)
 			rf.persist()
 		}
-
-		//update commit index taking the minimum of leader's commit index and the actual committed data in server
-		if args.LeaderCommit > rf.commitIndex {
-			lastNewIndex := args.PrevLogIndex + len(args.Entries)
-			if args.LeaderCommit < lastNewIndex {
-				rf.commitIndex = args.LeaderCommit
-			} else {
-				rf.commitIndex = lastNewIndex
-			}
+	}
+	//update commit index taking the minimum of leader's commit index and the actual committed data in server
+	if args.LeaderCommit > rf.commitIndex {
+		lastNewIndex := args.PrevLogIndex + len(args.Entries)
+		oldCommit := rf.commitIndex
+		if args.LeaderCommit < lastNewIndex {
+			rf.commitIndex = args.LeaderCommit
+		} else {
+			rf.commitIndex = lastNewIndex
+		}
+		if rf.commitIndex > oldCommit {
+			fmt.Printf("[Follower %d] Updated CommitIndex: %d -> %d\n", rf.me, oldCommit, rf.commitIndex)
 		}
 	}
+
 	reply.Success = true
 }
 

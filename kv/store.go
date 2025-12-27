@@ -40,8 +40,8 @@ type Store struct {
 }
 
 func NewKVStore(peers []pb.RaftServiceClient, me int) (*Store, error) {
-	walDir := filepath.Join("wal")
-	sstDir := filepath.Join("data")
+	walDir := fmt.Sprintf("Storage/wal/wal_%d", me)
+	sstDir := fmt.Sprintf("Storage/data/data_%d", me)
 
 	// 2. Create them if they don't exist
 	if err := os.MkdirAll(walDir, 0755); err != nil {

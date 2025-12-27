@@ -17,7 +17,7 @@ func (rf *Raft) persist() {
 
 	data := w.Bytes()
 
-	filename := fmt.Sprintf("raft_state%d.gob", rf.me)
+	filename := fmt.Sprintf("raft_state_%d.gob", rf.me)
 
 	err := os.WriteFile(filename, data, 0644)
 	if err != nil {
@@ -26,7 +26,7 @@ func (rf *Raft) persist() {
 }
 
 func (rf *Raft) readPersist() {
-	filename := fmt.Sprintf("raft_state%d.gob", rf.me)
+	filename := fmt.Sprintf("raft_state_%d.gob", rf.me)
 
 	data, err := os.ReadFile(filename)
 	if err != nil {
