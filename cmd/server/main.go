@@ -7,6 +7,7 @@ import (
 	pb "KV-Store/proto"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -48,6 +49,27 @@ type responseWriterWrapper struct {
 func (ww *responseWriterWrapper) WriteHeader(code int) {
 	ww.statusCode = code
 	ww.ResponseWriter.WriteHeader(code)
+}
+
+// Proxy function
+func forwardToLeader(w http.ResponseWriter, r *http.Request, leaderUrl string) {
+	req, err := http.NewRequest(r.Method, leaderUrl, r.Body)
+	if err != nil {
+		http.Error(w, "Failed to create request forwarding", http.StatusInternalServerError)
+	}
+	client := &http.Client{Timeout: time.Second * 5}
+	resp, err := client.Do(req)
+	if err != nil || resp == nil {
+		http.Error(w, "Failed to create request forwarding", http.StatusInternalServerError)
+	}
+	for k, v := range resp.Header {
+		w.Header()[k] = v
+	}
+	w.WriteHeader(resp.StatusCode)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to write response forwarding", http.StatusInternalServerError)
+	}
 }
 
 func main() {
@@ -106,6 +128,7 @@ func main() {
 		val := r.URL.Query().Get("val")
 		err := store.Put(key, val, false)
 		if err != nil {
+			// Proxy request to leader
 			if err.Error() == "not leader" {
 				leaderId := store.Raft.GetLeader()
 				if leaderId == -1 {
@@ -117,9 +140,9 @@ func main() {
 					return
 				}
 				leaderUrl := fmt.Sprintf(*template, leaderId)
-				fmt.Println("leaderURl: ", leaderUrl)
-				target := fmt.Sprintf("%s/put?key=%s&val=%s", leaderUrl, key, val)
-				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+				targetUrl := fmt.Sprintf("%s/put?key=%s&val=%s", leaderUrl, key, val)
+				fmt.Printf("[Forwarding] Redirecting to Leader: %s\n", targetUrl)
+				forwardToLeader(w, r, targetUrl)
 				return
 			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
