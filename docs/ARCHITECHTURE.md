@@ -15,8 +15,6 @@ The final system consists of a cluster of nodes (typically 3 or 5) functioning a
 
 ### Layer 2: The Distribution Layer (The "Brain")
 
-- **Consistent Hashing:** Routes keys to specific nodes based on `hash(key) % num_nodes`. This ensures balanced data distribution (e.g., in a 100GB cluster with 5 nodes, each node handles ~20GB).
-
 - **Raft Consensus Module:** The core coordination engine managing replication.
 
     - **Leader Election:** Automatically detects failures and elects a new leader if the current one crashes.
